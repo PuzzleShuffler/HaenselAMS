@@ -203,7 +203,7 @@ low_categorical_pipeline_steps = []
 low_categorical_pipeline_steps.append(('onehot', OneHotEncoder(handle_unknown='ignore')))
 low_categorical_pipeline = Pipeline(steps=low_categorical_pipeline_steps)
 
-# Low Categorical Feature Pipeline
+# High Categorical Feature Pipeline
 high_categorical_pipeline_steps = []
 high_categorical_pipeline_steps.append(('targetEncoder', TargetEncoder(target_type='continuous')))
 high_categorical_pipeline = Pipeline(steps=high_categorical_pipeline_steps)
