@@ -25,7 +25,7 @@ from sklearn.neighbors import KNeighborsRegressor, RadiusNeighborsRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import (MinMaxScaler, OneHotEncoder,
                                    PolynomialFeatures, PowerTransformer,
-                                   StandardScaler)
+                                   StandardScaler, TargetEncoder)
 from sklearn.svm import SVR
 from sklearn.tree import DecisionTreeRegressor
 from skopt import BayesSearchCV
@@ -181,8 +181,15 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # select numeric_features
-numeric_features = ['para1', 'para3', 'para2', 'para4']
+numeric_features = X_train.select_dtypes(include=np.number).columns.to_list()
+
+# select categorical features
 categorical_features = X_train.select_dtypes(exclude=np.number).columns.to_list()
+
+# seperate high and lower cardinality features
+n_unique_categories = X_train[categorical_features].nunique()
+high_cardinality_features = n_unique_categories[n_unique_categories > 100].index
+low_cardinality_features = n_unique_categories[n_unique_categories <= 100].index
 
 # Numeric Feature Pipeline
 numeric_pipeline_steps = []
@@ -191,14 +198,20 @@ numeric_pipeline_steps.append(('box-cox', PowerTransformer(method='box-cox')))
 numeric_pipeline_steps.append(('poly', PolynomialFeatures(degree=2)))
 numeric_pipeline = Pipeline(steps=numeric_pipeline_steps)
 
-# Categorical Feature Pipeline
-categorical_pipeline_steps = []
-categorical_pipeline_steps.append(('onehot', OneHotEncoder(handle_unknown='ignore')))
-categorical_pipeline = Pipeline(steps=categorical_pipeline_steps)
+# Low Categorical Feature Pipeline
+low_categorical_pipeline_steps = []
+low_categorical_pipeline_steps.append(('onehot', OneHotEncoder(handle_unknown='ignore')))
+low_categorical_pipeline = Pipeline(steps=low_categorical_pipeline_steps)
+
+# Low Categorical Feature Pipeline
+high_categorical_pipeline_steps = []
+high_categorical_pipeline_steps.append(('targetEncoder', TargetEncoder(target_type='continuous')))
+high_categorical_pipeline = Pipeline(steps=high_categorical_pipeline_steps)
 
 # Preprocessing Transformer
 transformer_steps = []
-transformer_steps.append(('cat', categorical_pipeline, categorical_features))
+transformer_steps.append(('low_cat', low_categorical_pipeline, low_cardinality_features))
+transformer_steps.append(('high_cat', high_categorical_pipeline, high_cardinality_features))
 transformer_steps.append(('num', numeric_pipeline, numeric_features))
 preprocessing_transformer = ColumnTransformer(transformers=transformer_steps)
 
@@ -279,7 +292,7 @@ tuning_model = KNeighborsRegressor(weights='distance')
 # Scoring
 scoring = 'neg_root_mean_squared_error'
 
-# Pipelinee Steps
+# Pipeline Steps
 model_pipeline_steps = []
 model_pipeline_steps.append(('transformer', preprocessing_transformer))
 model_pipeline_steps.append(('model', tuning_model))
